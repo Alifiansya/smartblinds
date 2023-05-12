@@ -18,11 +18,34 @@ void loadEepromData();
 
 void setup() 
 {
+  Serial.begin(9600);
   loadEepromData();
+  xTaskCreate(taskTimeCounter, "TimeCounter", 128, NULL, 1, NULL);
   xTaskCreate(taskLcdController, "LcdController", 128, NULL, 2, NULL);
 }
 
 void loop() {}
+
+void taskTimeCounter(void *pvParameters) 
+{
+  while(true)
+  {
+    timeCounter[DETIK]++;
+    if(timeCounter[DETIK] >= 60) 
+    {
+      timeCounter[MENIT]++;
+      timeCounter[DETIK] = 0;
+    }
+    if(timeCounter[MENIT] >= 60) 
+    {
+      timeCounter[JAM]++;
+      timeCounter[MENIT] = 0;
+    }
+    if(timeCounter[JAM] >= 24) timeCounter[JAM] = 0;
+    
+    vTaskDelay(pdMS_TO_TICKS(1000));
+  }
+}
 
 void taskLcdController(void *pvParameters) 
 {
@@ -33,11 +56,12 @@ void taskLcdController(void *pvParameters)
   {
     String timeStr[3];
     for(int i = 0; i < 3; i++)
-      timeStr[i] = (timeCounter[i] > 9 ? String(timeCounter[i]) : "0" + String(timeCounter[i]));
-    
+    {
+      timeStr[i] = (timeCounter[i] > 9 ? String(timeCounter[i]) : "0" + String(timeCounter[i]));   
+    }
     lcd.setCursor(0, 0);
     lcd.print("TIME=" + timeStr[JAM] + ":" + timeStr[MENIT] + ":" + timeStr[DETIK]);
-    
+    vTaskDelay(1);
   }
 }
 
@@ -54,4 +78,3 @@ void loadEepromData()
   }
   timeCounter[2] = EEPROM.read(timeCounterAddr[2]);
 }
-
