@@ -10,6 +10,10 @@ uint8_t timeCounter[3];
 uint8_t timeOpen[2];
 uint8_t timeClose[2];
 
+uint8_t timeCounterAddr[] = {0x00, 0x01, 0x02};
+uint8_t timeOpenAddr[] = {0x10, 0x11};
+uint8_t timeCloseAddr[] = {0x20, 0x21};
+
 void taskTimeCounter(void *pvParameters);
 void taskLcdController(void *pvParameters);
 
@@ -42,7 +46,7 @@ void taskTimeCounter(void *pvParameters)
       timeCounter[MENIT] = 0;
     }
     if(timeCounter[JAM] >= 24) timeCounter[JAM] = 0;
-    
+    updateEepromData(0);
     vTaskDelay(pdMS_TO_TICKS(1000));
   }
 }
@@ -67,9 +71,6 @@ void taskLcdController(void *pvParameters)
 
 void loadEepromData()
 {
-  uint8_t timeCounterAddr[] = {0x00, 0x01, 0x02};
-  uint8_t timeOpenAddr[] = {0x10, 0x11};
-  uint8_t timeCloseAddr[] = {0x20, 0x21};
   for(int i = 0; i < 2; i++) 
   {
     timeCounter[i] = EEPROM.read(timeCounterAddr[i]);
@@ -77,4 +78,19 @@ void loadEepromData()
     timeClose[i] = EEPROM.read(timeCloseAddr[i]);
   }
   timeCounter[2] = EEPROM.read(timeCounterAddr[2]);
+}
+
+void updateEepromData(uint8_t time) {
+  // Switch statement, 0 = timeCounter, 1 = timeOpen, 2 = timeClose
+  switch(time) {
+    case 1:
+      for(int i = 0; i < 2; i++) EEPROM.update(timeOpenAddr[i], timeOpen[i]);
+      break;
+    case 2:
+      for(int i = 0; i < 2; i++) EEPROM.update(timeCloseAddr[i], timeClose[i]);
+      break;
+    default:
+      for(int i = 0; i < 3; i++) EEPROM.update(timeCounterAddr[i], timeCounter[i]);
+      break;
+  }
 }
