@@ -137,6 +137,8 @@ void taskButtonController(void *pvParameter)
       if(buttonClickCounter[0] == 0) vTaskSuspend(xTimeCounterHandle);
       if(++buttonClickCounter[0] > 3 || buttonClickCounter[1] > 0) 
       {
+        updateEepromData(1);
+        updateEepromData(2);
         vTaskResume(xTimeCounterHandle);
         for(int i = 0; i < 3; i++) buttonClickCounter[i] = 0;
       }
