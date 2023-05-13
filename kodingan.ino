@@ -39,7 +39,7 @@ uint8_t buttonClickCounter[3] = {0};
 unsigned long blinkLast = 0;
 bool blinkNow = true;
 
-SoftwareWire *wire = new SoftwareWire(PIN_WIRE_SDA, PIN_WIRE_SCL);
+SoftwareWire *wire = new SoftwareWire(A0, A1);
 LiquidCrystal_I2C lcd(0x27, 16, 2, wire);
 LcdStates lcdState = COUNTING;
 
