@@ -20,6 +20,7 @@
  * than normal usage, becareful when allocating memory and
  * reuse allocated memory if possible
  */
+enum LcdStates {COUNTING, CHANGING};
 
 uint8_t timeCounter[3];
 uint8_t timeOpen[2];
@@ -34,8 +35,13 @@ uint8_t buttonClickCounter[3] = {0};
 // checking if taskCounter running
 // bool counterRunning = true;
 
+// blinking signal
+unsigned long blinkLast = 0;
+bool blinkNow = true;
+
 SoftwareWire *wire = new SoftwareWire(PIN_WIRE_SDA, PIN_WIRE_SCL);
 LiquidCrystal_I2C lcd(0x27, 16, 2, wire);
+LcdStates lcdState = COUNTING;
 
 ezButton button1(2, INPUT_PULLUP);
 ezButton button2(3, INPUT_PULLUP);
@@ -48,7 +54,6 @@ void taskLcdController(void *pvParameters);
 void taskButtonController(void *pvParameter);
 
 void loadEepromData();
-
 
 void setup() 
 {
@@ -117,6 +122,7 @@ void taskLcdController(void *pvParameters)
     }
     lcd.setCursor(11, 1);
     lcd.print(timeStr[JAM] + ":" + timeStr[MENIT]); //5 char
+    blinkLcdTime();
     vTaskDelay(1);
   }
 }
@@ -134,12 +140,17 @@ void taskButtonController(void *pvParameter)
     // Button time counter/open/close choose
     if(button1.isPressed()) 
     {
-      if(buttonClickCounter[0] == 0) vTaskSuspend(xTimeCounterHandle);
+      if(buttonClickCounter[0] == 0) 
+      {
+        vTaskSuspend(xTimeCounterHandle);
+        lcdState = CHANGING;
+      }
       if(++buttonClickCounter[0] > 3 || buttonClickCounter[1] > 0) 
       {
         updateEepromData(1);
         updateEepromData(2);
         vTaskResume(xTimeCounterHandle);
+        lcdState = COUNTING;
         for(int i = 0; i < 3; i++) buttonClickCounter[i] = 0;
       }
     }
@@ -149,6 +160,7 @@ void taskButtonController(void *pvParameter)
       if(++buttonClickCounter[1] > 2)
       {
         vTaskResume(xTimeCounterHandle);
+        lcdState = COUNTING;
         for(int i = 0; i < 3; i++) buttonClickCounter[i] = 0;        
       }
     }
@@ -207,7 +219,8 @@ void loadEepromData()
 
 void updateEepromData(uint8_t time) {
   // Switch statement, 0 = timeCounter, 1 = timeOpen, 2 = timeClose
-  switch(time) {
+  switch(time) 
+  {
     case 1:
       for(int i = 0; i < 2; i++) EEPROM.update(timeOpenAddr[i], timeOpen[i]);
       break;
@@ -216,6 +229,85 @@ void updateEepromData(uint8_t time) {
       break;
     default:
       for(int i = 0; i < 3; i++) EEPROM.update(timeCounterAddr[i], timeCounter[i]);
+      break;
+  }
+}
+
+void blinkLcdTime()
+{
+  Serial.println("TE");
+  if((millis() - blinkLast) > 500)
+  {
+    blinkLast = millis();
+    blinkNow = !blinkNow;
+  }
+  switch(buttonClickCounter[0]) 
+  {
+    case 1:
+      Serial.print("Test");
+      switch(buttonClickCounter[1]) 
+      {
+        case 1:
+          lcd.setCursor(5, 0);
+          if(blinkNow) lcd.print("__");
+          else lcd.print((timeCounter[JAM] > 9 ? String(timeCounter[JAM]) : "0" + String(timeCounter[JAM])));
+          break;
+        case 2:
+          lcd.setCursor(8, 0);
+          if(blinkNow) lcd.print("__");
+          else lcd.print((timeCounter[MENIT] > 9 ? String(timeCounter[MENIT]) : "0" + String(timeCounter[MENIT])));
+          break;
+        default:
+          lcd.setCursor(5, 0);
+          if(blinkNow) lcd.print("_____");
+          else lcd.print((timeCounter[JAM] > 9 ? String(timeCounter[JAM]) : "0" + String(timeCounter[JAM])) + 
+                        ":" + (timeCounter[MENIT] > 9 ? String(timeCounter[MENIT]) : "0" + String(timeCounter[MENIT])));
+          break; 
+      }      
+      break;
+    case 2:
+      switch(buttonClickCounter[1]) 
+      {
+        case 1:
+          lcd.setCursor(5, 1);
+          if(blinkNow) lcd.print("__");
+          else lcd.print((timeOpen[JAM] > 9 ? String(timeOpen[JAM]) : "0" + String(timeOpen[JAM])));
+          break;
+        case 2:
+          lcd.setCursor(8, 1);
+          if(blinkNow) lcd.print("__");
+          else lcd.print((timeOpen[MENIT] > 9 ? String(timeOpen[MENIT]) : "0" + String(timeOpen[MENIT])));
+          break;
+        default:
+          lcd.setCursor(5, 1);
+          if(blinkNow) lcd.print("_____");
+          else lcd.print((timeOpen[JAM] > 9 ? String(timeOpen[JAM]) : "0" + String(timeOpen[JAM])) + 
+                        ":" + (timeOpen[MENIT] > 9 ? String(timeOpen[MENIT]) : "0" + String(timeOpen[MENIT])));
+          break; 
+      }    
+      break;
+    case 3:
+      switch(buttonClickCounter[1]) 
+      {
+        case 1:
+          lcd.setCursor(11, 1);
+          if(blinkNow) lcd.print("__");
+          else lcd.print((timeClose[JAM] > 9 ? String(timeClose[JAM]) : "0" + String(timeClose[JAM])));
+          break;
+        case 2:
+          lcd.setCursor(14, 1);
+          if(blinkNow) lcd.print("__");
+          else lcd.print((timeClose[MENIT] > 9 ? String(timeClose[MENIT]) : "0" + String(timeClose[MENIT])));
+          break;
+        default:
+          lcd.setCursor(11, 1);
+          if(blinkNow) lcd.print("_____");
+          else lcd.print((timeClose[JAM] > 9 ? String(timeClose[JAM]) : "0" + String(timeClose[JAM])) + 
+                        ":" + (timeClose[MENIT] > 9 ? String(timeClose[MENIT]) : "0" + String(timeClose[MENIT])));
+          break; 
+      } 
+      break;
+    default:
       break;
   }
 }
