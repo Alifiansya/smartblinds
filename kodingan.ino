@@ -54,6 +54,8 @@ void taskLcdController(void *pvParameters);
 void taskButtonController(void *pvParameter);
 
 void loadEepromData();
+void blinkLcdTime();
+void startLcdCounter();
 
 void setup() 
 {
@@ -97,32 +99,17 @@ void taskLcdController(void *pvParameters)
 {
   while(true) 
   {
-    // 5 lines below needs a callable function (COMMENTS NOT INCLUDED)
-    String timeStr[3];
-    // Output Time Counter to LCD
-    for(int i = 0; i < 3; i++)
+    switch(lcdState) 
     {
-      timeStr[i] = (timeCounter[i] > 9 ? String(timeCounter[i]) : "0" + String(timeCounter[i]));   
+      case COUNTING:
+        startLcdCounter();
+        break;
+      case CHANGING:
+        blinkLcdTime();
+        break;
+      default:
+        break;
     }
-    lcd.setCursor(0, 0);
-    lcd.print("TIME=" + timeStr[JAM] + ":" + timeStr[MENIT] + ":" + timeStr[DETIK]);
-    
-    // Output Time Open to LCD
-    for(int i = 0; i < 2; i++)
-    {
-      timeStr[i] = (timeOpen[i] > 9 ? String(timeOpen[i]) : "0" + String(timeOpen[i]));   
-    }
-    lcd.setCursor(0, 1);
-    lcd.print("Open " + timeStr[JAM] + ":" + timeStr[MENIT] + "-"); //11 char
-                      
-    // Output Time Close to LCD
-    for(int i = 0; i < 2; i++)
-    {
-      timeStr[i] = (timeClose[i] > 9 ? String(timeClose[i]) : "0" + String(timeClose[i]));   
-    }
-    lcd.setCursor(11, 1);
-    lcd.print(timeStr[JAM] + ":" + timeStr[MENIT]); //5 char
-    blinkLcdTime();
     vTaskDelay(1);
   }
 }
@@ -233,9 +220,37 @@ void updateEepromData(uint8_t time) {
   }
 }
 
+void startLcdCounter()
+{
+  // 5 lines below needs a callable function (COMMENTS NOT INCLUDED)
+  String timeStr[3];
+  // Output Time Counter to LCD
+  for(int i = 0; i < 3; i++)
+  {
+    timeStr[i] = (timeCounter[i] > 9 ? String(timeCounter[i]) : "0" + String(timeCounter[i]));   
+  }
+  lcd.setCursor(0, 0);
+  lcd.print("TIME=" + timeStr[JAM] + ":" + timeStr[MENIT] + ":" + timeStr[DETIK]);
+  
+  // Output Time Open to LCD
+  for(int i = 0; i < 2; i++)
+  {
+    timeStr[i] = (timeOpen[i] > 9 ? String(timeOpen[i]) : "0" + String(timeOpen[i]));   
+  }
+  lcd.setCursor(0, 1);
+  lcd.print("Open " + timeStr[JAM] + ":" + timeStr[MENIT] + "-"); //11 char
+                    
+  // Output Time Close to LCD
+  for(int i = 0; i < 2; i++)
+  {
+    timeStr[i] = (timeClose[i] > 9 ? String(timeClose[i]) : "0" + String(timeClose[i]));   
+  }
+  lcd.setCursor(11, 1);
+  lcd.print(timeStr[JAM] + ":" + timeStr[MENIT]); //5 char
+}
+
 void blinkLcdTime()
 {
-  Serial.println("TE");
   if((millis() - blinkLast) > 500)
   {
     blinkLast = millis();
@@ -244,7 +259,6 @@ void blinkLcdTime()
   switch(buttonClickCounter[0]) 
   {
     case 1:
-      Serial.print("Test");
       switch(buttonClickCounter[1]) 
       {
         case 1:
@@ -266,6 +280,7 @@ void blinkLcdTime()
       }      
       break;
     case 2:
+    
       switch(buttonClickCounter[1]) 
       {
         case 1:
