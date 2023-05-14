@@ -2,6 +2,7 @@
 #include <LiquidCrystal_SoftI2C.h>
 #include <EEPROM.h>
 #include <ezButton.h>
+#include <Servo.h>
 
 #define JAM 0x00
 #define MENIT 0x01
@@ -42,6 +43,7 @@ bool blinkNow = true;
 SoftwareWire *wire = new SoftwareWire(A0, A1);
 LiquidCrystal_I2C lcd(0x27, 16, 2, wire);
 LcdStates lcdState = COUNTING;
+Servo servoBlinds;
 
 ezButton button1(2, INPUT_PULLUP);
 ezButton button2(3, INPUT_PULLUP);
@@ -52,6 +54,7 @@ TaskHandle_t xTimeCounterHandle;
 void taskTimeCounter(void *pvParameters);
 void taskLcdController(void *pvParameters);
 void taskButtonController(void *pvParameter);
+void taskServoController(void *pvParameter);
 
 void loadEepromData();
 void blinkLcdTime();
@@ -62,20 +65,29 @@ void setup()
   Serial.begin(9600);
   lcd.begin();
   loadEepromData();
-
+//46:40
   button1.setDebounceTime(50);
   button2.setDebounceTime(50);
   button3.setDebounceTime(50);
 
+  servoBlinds.attach(9);
+
   xTaskCreate(taskTimeCounter, "TimeCounter", 128, NULL, 1, &xTimeCounterHandle);
   xTaskCreate(taskLcdController, "LcdController", 128, NULL, 2, NULL);
   xTaskCreate(taskButtonController, "ButtonController", 128, NULL, 1, NULL);
+  xTaskCreate(taskServoController, "ServoController", 128, NULL, 1, NULL);
 }
 
 void loop() {}
 
+
+// ==================================================
+// ===================== TASK =======================
+// ==================================================
+
 void taskTimeCounter(void *pvParameters) 
 {
+  
   while(true)
   {
     timeCounter[DETIK]++;
@@ -99,6 +111,8 @@ void taskLcdController(void *pvParameters)
 {
   while(true) 
   {
+    for(int i = 0; i < 3; i++) Serial.print(buttonClickCounter[i]);
+Serial.println(lcdState);
     switch(lcdState) 
     {
       case COUNTING:
@@ -193,6 +207,26 @@ void taskButtonController(void *pvParameter)
   }
 }
 
+void taskServoController(void *pvParameter) 
+{
+  while(true)
+  {
+    if((timeCounter[JAM] == timeOpen[JAM]) && (timeCounter[MENIT] == timeOpen[MENIT]))
+    {
+      if(timeCounter[DETIK] == 0) servoBlinds.write(0);
+    }
+    else if((timeCounter[JAM] == timeClose[JAM]) && (timeCounter[MENIT] == timeClose[MENIT]))
+    {
+      if(timeCounter[DETIK] == 0) servoBlinds.write(90);
+    }
+    vTaskDelay(1);
+  }
+}
+
+// ==================================================
+// =================== FUNCTION =====================
+// ==================================================
+
 void loadEepromData()
 {
   for(int i = 0; i < 2; i++) 
@@ -262,16 +296,19 @@ void blinkLcdTime()
       switch(buttonClickCounter[1]) 
       {
         case 1:
+          // For the blinking JAM timeCounter data
           lcd.setCursor(5, 0);
           if(blinkNow) lcd.print("__");
           else lcd.print((timeCounter[JAM] > 9 ? String(timeCounter[JAM]) : "0" + String(timeCounter[JAM])));
           break;
         case 2:
+          // For the blinking MENIT timeCounter data
           lcd.setCursor(8, 0);
           if(blinkNow) lcd.print("__");
           else lcd.print((timeCounter[MENIT] > 9 ? String(timeCounter[MENIT]) : "0" + String(timeCounter[MENIT])));
           break;
         default:
+          // To Blink Full timeCounter data in LCD
           lcd.setCursor(5, 0);
           if(blinkNow) lcd.print("_____");
           else lcd.print((timeCounter[JAM] > 9 ? String(timeCounter[JAM]) : "0" + String(timeCounter[JAM])) + 
@@ -279,21 +316,27 @@ void blinkLcdTime()
           break; 
       }      
       break;
-    case 2:
-    
+    case 2:               
       switch(buttonClickCounter[1]) 
       {
         case 1:
+          // For the blinking JAM timeOpen data
           lcd.setCursor(5, 1);
           if(blinkNow) lcd.print("__");
           else lcd.print((timeOpen[JAM] > 9 ? String(timeOpen[JAM]) : "0" + String(timeOpen[JAM])));
           break;
         case 2:
+          // To keep showing JAM timeOpen data
+          lcd.setCursor(5, 1);
+          lcd.print((timeOpen[JAM] > 9 ? String(timeOpen[JAM]) : "0" + String(timeOpen[JAM])));          
+          
+          // For the blinking MENIT timeOpen data
           lcd.setCursor(8, 1);
           if(blinkNow) lcd.print("__");
           else lcd.print((timeOpen[MENIT] > 9 ? String(timeOpen[MENIT]) : "0" + String(timeOpen[MENIT])));
           break;
         default:
+          // To blink all timeOpen data in LCD
           lcd.setCursor(5, 1);
           if(blinkNow) lcd.print("_____");
           else lcd.print((timeOpen[JAM] > 9 ? String(timeOpen[JAM]) : "0" + String(timeOpen[JAM])) + 
